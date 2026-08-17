@@ -1,0 +1,10 @@
+{
+  "name": "会話記録",
+  "short_name": "会話記録",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FAFAF8",
+  "theme_color": "#FAFAF8",
+  "icons": []
+}
