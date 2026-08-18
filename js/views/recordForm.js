@@ -3,6 +3,7 @@ import { listPeople, addPerson } from '../db/people.js';
 import { listGroups, addGroup } from '../db/groups.js';
 import { generateTitle } from '../lib/autoTitle.js';
 import { escapeHtml, splitCsv, uuid } from '../lib/util.js';
+import { showTextInputModal } from './modal.js';
 
 export async function renderRecordForm(root, params = {}, query) {
   root.innerHTML = `<div class="view"><p class="loading">読み込み中…</p></div>`;
@@ -146,8 +147,13 @@ export async function renderRecordForm(root, params = {}, query) {
   });
 
   root.querySelector('#add-person-inline').addEventListener('click', async () => {
-    const name = prompt('人物の名前を入力してください');
-    if (!name || !name.trim()) return;
+    const name = await showTextInputModal({
+      title: '人物を追加',
+      description: '会話した相手の名前を入力してください',
+      placeholder: '例：山田さん',
+      confirmLabel: '追加',
+    });
+    if (!name) return;
     try {
       const p = await addPerson({ name });
       root.querySelector('#person-checks').insertAdjacentHTML('beforeend', chipHTML(p, true));
