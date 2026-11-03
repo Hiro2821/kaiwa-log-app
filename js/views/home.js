@@ -18,9 +18,29 @@ export async function renderHome(root) {
 
   root.innerHTML = `
     <div class="page">
-      <header class="page-header">
-        <h1 class="page-title">ホーム</h1>
-        <a href="#/settings" class="header-link">データ管理</a>
+      <header class="home-header">
+        <div class="home-brand">
+          <h1 class="page-title">会話記録</h1>
+          <span class="pill">KAIWA LOG</span>
+        </div>
+        <nav class="icon-buttons" aria-label="ショートカット">
+          <a href="#/search" class="icon-button">
+            <span class="icon-button__circle">
+              <svg class="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" />
+              </svg>
+            </span>
+            <span class="icon-button__label">検索</span>
+          </a>
+          <a href="#/settings" class="icon-button">
+            <span class="icon-button__circle">
+              <svg class="icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M3.5 4.5h17v4h-17zM5 8.5V19h14V8.5M10 12.5h4" />
+              </svg>
+            </span>
+            <span class="icon-button__label">データ</span>
+          </a>
+        </nav>
       </header>
 
       ${backupNoticeHTML(lastBackupAt, records.length + people.length > 0)}
@@ -36,9 +56,17 @@ export async function renderHome(root) {
         </div>
       </dl>
 
-      <div class="actions actions--row">
-        <a href="#/record/new" class="btn btn--primary">新規記録</a>
-        <a href="#/people" class="btn btn--secondary">人物一覧</a>
+      <div class="nav-cards">
+        <a href="#/record/new" class="nav-card">
+          <span class="nav-card__chev" aria-hidden="true">›</span>
+          <span class="nav-card__title">新規記録</span>
+          <span class="nav-card__desc">話した内容を残す</span>
+        </a>
+        <a href="#/people" class="nav-card">
+          <span class="nav-card__chev" aria-hidden="true">›</span>
+          <span class="nav-card__title">人物一覧</span>
+          <span class="nav-card__desc">表で見比べる</span>
+        </a>
       </div>
 
       <section class="section">

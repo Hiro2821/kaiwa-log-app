@@ -1,53 +1,44 @@
 /* =========================================================
-   会話記録 スタイル
+   会話記録 スタイル — ブラック × ゴールド
    方針:
-   - 白・黒・グレーの階調だけで構成する（装飾・グラデーション・アニメーションなし）。
-     色を使うのは、破壊的な操作を示す赤だけ。
-   - 余白と文字の大きさ・太さで情報の階層を作る（Apple純正アプリの整然とした見た目）。
-   - タップできる要素は高さ44px以上を確保する。
-   - iPhoneは片手操作を優先し、iPadでは最大幅を広げて表を見やすくする。
-   - ライト／ダークは端末の設定に自動で従う。
+   - 背景はブラック〜ダークブラウン。カードは背景より少し明るい暗色に、細いゴールドの枠線。
+   - アクセントは派手にならない「シャンパンゴールド」。見出し・数値・選択状態など、
+     重要な情報にだけ使う。本文はアイボリー、補足はベージュ/グレージュ。
+   - 影・グラデーション・アニメーションは使わない。余白・文字・色・配置で見せる。
+   - アイコンは共通クラス .icon でサイズを一括管理する（巨大化の防止）。
+   - タップ要素は高さ44px以上。iPhoneは片手操作、iPadは最大幅を抑えて表を見やすく。
+   - 配色は固定（端末のライト/ダーク設定には従わない）。
    ========================================================= */
 
 :root {
-  --bg: #ffffff;
-  --bg-secondary: #f2f2f7;
-  --bg-tertiary: #e5e5ea;
-  --sheet-bg: #ffffff;
-  --text: #111111;
-  --text-secondary: #6b6b70;
-  --text-tertiary: #8e8e93;
-  --separator: #e3e3e8;
-  --accent: #111111;
-  --on-accent: #ffffff;
-  --danger: #c1121f;
-  --overlay: rgba(0, 0, 0, 0.35);
+  /* 背景・面 */
+  --bg: #0d0b09;
+  --card: #15110c;
+  --card-raised: #1d1811;
+  --card-pressed: #251e12;
+
+  /* 文字 */
+  --text: #f3ede0; /* アイボリーホワイト */
+  --text-secondary: #bfb39c; /* ベージュ */
+  --text-tertiary: #8f8570; /* グレージュ */
+
+  /* ゴールド（シャンパンゴールド） */
+  --gold: #cfb27a;
+  --gold-strong: #e0c78f;
+  --on-gold: #17110a;
+  --gold-line: rgba(178, 142, 78, 0.45); /* カードの枠線（やや茶寄りの控えめなゴールド） */
+  --gold-hairline: rgba(178, 142, 78, 0.2); /* 区切り線 */
+
+  --danger: #e8806f;
+  --overlay: rgba(0, 0, 0, 0.66);
 
   --radius: 12px;
-  --radius-lg: 14px;
-  --tabbar-h: 50px;
+  --radius-card: 22px;
+  --tabbar-h: 56px;
   --content-max: 960px;
-  --reading-max: 44rem;
 
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans",
     "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #000000;
-    --bg-secondary: #1c1c1e;
-    --bg-tertiary: #2c2c2e;
-    --sheet-bg: #1c1c1e;
-    --text: #f5f5f7;
-    --text-secondary: #a1a1a6;
-    --text-tertiary: #8e8e93;
-    --separator: #2f2f33;
-    --accent: #f5f5f7;
-    --on-accent: #000000;
-    --danger: #ff6961;
-    --overlay: rgba(0, 0, 0, 0.6);
-  }
 }
 
 * {
@@ -63,11 +54,13 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   background: var(--bg);
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
-  background: var(--bg);
+  /* 上部だけにごく淡い暖色の明るみを付ける（目立つグラデーションにはしない） */
+  background: linear-gradient(180deg, #1a140c 0, var(--bg) 280px) no-repeat, var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 16px;
@@ -84,8 +77,38 @@ a {
 }
 
 :focus-visible {
-  outline: 2px solid var(--text);
+  outline: 2px solid var(--gold);
   outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(207, 178, 122, 0.35);
+}
+
+/* ---------------------------------------------------------
+   アイコン: すべての <svg> はここでサイズを管理する。
+   width/height に加え max-width/max-height も指定し、
+   どんな親要素の中でも画面いっぱいに拡大されないようにする。
+   --------------------------------------------------------- */
+svg {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.icon {
+  display: block;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  max-width: 24px;
+  max-height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* ---------------------------------------------------------
@@ -123,6 +146,117 @@ a {
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+/* ホームのヘッダー: アプリ名 + バッジ、右にアイコンボタン */
+.home-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 18px;
+}
+
+.home-brand .page-title {
+  margin: 4px 0 8px;
+  font-size: 32px;
+  color: #ecdcb4;
+}
+
+.pill {
+  display: inline-block;
+  padding: 3px 12px;
+  background: var(--gold);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: var(--on-gold);
+}
+
+.icon-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.icon-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 52px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.icon-button__circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--card);
+  border: 1px solid var(--gold-line);
+  border-radius: 16px;
+  color: var(--gold-strong);
+}
+
+.icon-button:active .icon-button__circle {
+  background: var(--card-pressed);
+}
+
+.icon-button__label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+/* ホームの大きなメニューカード（新規記録・人物一覧） */
+.nav-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0 0 8px;
+}
+
+.nav-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 112px;
+  padding: 18px 18px 16px;
+  background: var(--card);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--radius-card);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.nav-card:active {
+  background: var(--card-pressed);
+}
+
+.nav-card__title {
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.nav-card__desc {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.nav-card__chev {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--gold);
 }
 
 .back-link {
@@ -131,6 +265,7 @@ a {
   min-height: 44px;
   padding-right: 12px;
   font-size: 17px;
+  color: var(--gold);
   text-decoration: none;
 }
 
@@ -153,8 +288,8 @@ a {
   border: 0;
   font: inherit;
   font-size: 17px;
-  font-weight: 500;
-  color: var(--text);
+  font-weight: 600;
+  color: var(--gold);
   text-decoration: none;
   cursor: pointer;
 }
@@ -162,7 +297,7 @@ a {
 .header-link:active,
 .header-button:active,
 .back-link:active {
-  opacity: 0.5;
+  opacity: 0.55;
 }
 
 /* ---------------------------------------------------------
@@ -180,11 +315,11 @@ a {
 }
 
 .section__title {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--text-secondary);
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--gold);
 }
 
 .section__head .section__title {
@@ -196,14 +331,14 @@ a {
   align-items: center;
   min-height: 44px;
   font-size: 15px;
-  text-decoration: none;
   color: var(--text-secondary);
+  text-decoration: none;
 }
 
 .section--danger-zone {
   margin-top: 36px;
   padding-top: 8px;
-  border-top: 1px solid var(--separator);
+  border-top: 1px solid var(--gold-hairline);
 }
 
 .detail-title {
@@ -226,7 +361,8 @@ a {
 .subhead {
   margin: 16px 0 6px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--gold);
 }
 
 .body-note {
@@ -245,6 +381,7 @@ a {
 .caption--center {
   margin-top: 32px;
   text-align: center;
+  color: var(--text-tertiary);
 }
 
 .muted {
@@ -253,10 +390,13 @@ a {
 
 .empty {
   margin: 0;
-  padding: 40px 16px;
+  padding: 36px 16px;
   text-align: center;
   font-size: 15px;
   color: var(--text-secondary);
+  background: var(--card);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--radius-card);
 }
 
 .notice {
@@ -265,9 +405,10 @@ a {
   justify-content: space-between;
   gap: 12px;
   margin: 4px 0 16px;
-  padding: 10px 14px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius);
+  padding: 10px 14px 10px 16px;
+  background: var(--card);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--radius-card);
   font-size: 14px;
   color: var(--text-secondary);
 }
@@ -286,8 +427,8 @@ a {
   border: 0;
   font: inherit;
   font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 700;
+  color: var(--gold);
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
@@ -300,7 +441,7 @@ a {
   background: none;
   border: 0;
   font: inherit;
-  color: var(--text);
+  color: var(--gold);
   text-decoration: underline;
   cursor: pointer;
 }
@@ -329,11 +470,11 @@ a {
   justify-content: center;
   min-height: 50px;
   padding: 0 20px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: var(--radius);
   font: inherit;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.2;
   text-align: center;
   text-decoration: none;
@@ -343,7 +484,7 @@ a {
 }
 
 .btn:active {
-  opacity: 0.65;
+  opacity: 0.7;
 }
 
 .btn[disabled] {
@@ -357,22 +498,24 @@ a {
 }
 
 .btn--primary {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--gold);
+  color: var(--on-gold);
 }
 
 .btn--secondary {
-  background: var(--bg-secondary);
-  color: var(--text);
+  background: var(--card);
+  border-color: var(--gold-line);
+  color: var(--gold-strong);
 }
 
 .btn--danger {
   background: var(--danger);
-  color: #ffffff;
+  color: var(--on-gold);
 }
 
 .btn--danger-text {
-  background: var(--bg-secondary);
+  background: var(--card);
+  border-color: rgba(232, 128, 111, 0.4);
   color: var(--danger);
 }
 
@@ -383,42 +526,52 @@ a {
 }
 
 /* ---------------------------------------------------------
-   ホームの集計
+   カード: ホームの集計、人物詳細などの情報ブロック
    --------------------------------------------------------- */
-.stats {
+.stats,
+.facts {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   margin: 8px 0 16px;
 }
 
-.stats__item {
+.facts--single {
+  grid-template-columns: 1fr;
+}
+
+.stats__item,
+.facts__item {
   display: block;
   padding: 16px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
+  background: var(--card);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--radius-card);
   color: inherit;
   text-decoration: none;
 }
 
 a.stats__item:active {
-  background: var(--bg-tertiary);
+  background: var(--card-pressed);
 }
 
-.stats__item dt {
+.stats__item dt,
+.facts__item dt {
   margin: 0 0 4px;
   font-size: 13px;
   color: var(--text-secondary);
 }
 
-.stats__item dd {
+.stats__item dd,
+.facts__item dd {
   margin: 0;
 }
 
 .stats__num {
-  font-size: 34px;
+  font-size: 36px;
   line-height: 1.1;
   font-weight: 700;
+  color: var(--gold-strong);
   font-variant-numeric: tabular-nums;
 }
 
@@ -428,43 +581,23 @@ a.stats__item:active {
   color: var(--text-secondary);
 }
 
-/* 人物詳細などの小さな情報ブロック */
-.facts {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin: 16px 0;
-}
-
-.facts--single {
-  grid-template-columns: 1fr;
-}
-
-.facts__item {
-  padding: 14px 16px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-}
-
-.facts__item dt {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
 .facts__item dd {
-  margin: 4px 0 0;
+  margin-top: 4px;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--gold-strong);
   font-variant-numeric: tabular-nums;
 }
 
 /* ---------------------------------------------------------
-   表
+   表（カードの中に収める）
    --------------------------------------------------------- */
 .table-wrap {
-  margin: 0 -6px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  background: var(--card);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--radius-card);
 }
 
 .table {
@@ -476,23 +609,38 @@ a.stats__item:active {
 
 .table th {
   padding: 0 6px;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 1px solid var(--gold-line);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   text-align: left;
-  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  color: var(--gold);
   white-space: nowrap;
 }
 
 .table thead tr {
-  height: 36px;
+  height: 40px;
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-left: 16px;
+}
+
+.table th:last-child,
+.table td:last-child {
+  padding-right: 16px;
 }
 
 .table td {
   padding: 13px 6px;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 1px solid var(--gold-hairline);
   vertical-align: top;
   overflow-wrap: anywhere;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 .table a {
@@ -506,7 +654,7 @@ a.stats__item:active {
 }
 
 .table tbody tr[data-href]:active td {
-  background: var(--bg-secondary);
+  background: var(--card-pressed);
 }
 
 .clamp {
@@ -528,6 +676,7 @@ a.stats__item:active {
   background: none;
   border: 0;
   font: inherit;
+  letter-spacing: inherit;
   color: inherit;
   white-space: nowrap;
   cursor: pointer;
@@ -539,12 +688,12 @@ a.stats__item:active {
 
 th[aria-sort="ascending"],
 th[aria-sort="descending"] {
-  color: var(--text);
+  color: var(--gold-strong);
 }
 
 /* 記録の表: 日付 / タイトル (/ 人物) */
 .table--records .col-date {
-  width: 5.8rem;
+  width: 6.7rem;
   white-space: nowrap;
 }
 
@@ -552,6 +701,10 @@ th[aria-sort="descending"] {
   font-size: 14px;
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
+}
+
+.table--records td.col-title {
+  font-weight: 600;
 }
 
 .table--records.table--with-people .col-people {
@@ -565,20 +718,22 @@ th[aria-sort="descending"] {
 
 /* 人物の表: 人物名 / 記録数 / 最終記録日 / メモ */
 .table--people .col-name {
-  width: 31%;
+  width: 37%;
 }
 
 .table--people td.col-name {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .table--people .col-count {
-  width: 3.7rem;
+  width: 3.3rem;
   text-align: right;
 }
 
 .table--people td.col-count {
   font-variant-numeric: tabular-nums;
+  color: var(--gold-strong);
+  font-weight: 600;
 }
 
 .table--people th.col-count .th-sort {
@@ -591,7 +746,7 @@ th[aria-sort="descending"] {
 }
 
 .table--people .col-last {
-  width: 5.8rem;
+  width: 5.9rem;
   white-space: nowrap;
 }
 
@@ -611,17 +766,19 @@ th[aria-sort="descending"] {
 }
 
 .table--groups td.col-name {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .table--groups .col-count {
   width: 4rem;
   text-align: right;
-  padding-right: 10px;
 }
 
 .table--groups td.col-count {
+  padding-right: 10px;
   font-variant-numeric: tabular-nums;
+  color: var(--gold-strong);
+  font-weight: 600;
 }
 
 /* ---------------------------------------------------------
@@ -635,8 +792,9 @@ th[aria-sort="descending"] {
   display: block;
   margin: 0 0 6px;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--gold);
 }
 
 .field {
@@ -644,9 +802,9 @@ th[aria-sort="descending"] {
   width: 100%;
   min-height: 48px;
   padding: 12px 14px;
-  background: var(--bg-secondary);
+  background: var(--card);
   color: var(--text);
-  border: 1px solid transparent;
+  border: 1px solid var(--gold-line);
   border-radius: var(--radius);
   font: inherit;
   font-size: 17px; /* 16px未満だとiOSが入力時に画面を拡大するため */
@@ -661,11 +819,11 @@ th[aria-sort="descending"] {
 
 .field:focus {
   outline: none;
-  border-color: var(--text-tertiary);
+  border-color: var(--gold);
 }
 
 .field--search {
-  margin: 4px 0 8px;
+  margin: 4px 0 12px;
 }
 
 .field--textarea {
@@ -694,9 +852,9 @@ th[aria-sort="descending"] {
   width: 100%;
   min-height: 48px;
   padding: 12px 14px;
-  background: var(--bg-secondary);
+  background: var(--card);
   color: var(--text);
-  border: 0;
+  border: 1px solid var(--gold-line);
   border-radius: var(--radius);
   font: inherit;
   font-size: 17px;
@@ -706,7 +864,7 @@ th[aria-sort="descending"] {
 }
 
 .select-field:active {
-  background: var(--bg-tertiary);
+  background: var(--card-pressed);
 }
 
 .select-field__value {
@@ -721,23 +879,28 @@ th[aria-sort="descending"] {
 .select-field__chevron {
   font-size: 22px;
   line-height: 1;
-  color: var(--text-tertiary);
+  color: var(--gold);
 }
 
 /* ---------------------------------------------------------
    記録詳細（読むための画面）
    --------------------------------------------------------- */
 .meta {
-  margin: 0 0 20px;
-  border-top: 1px solid var(--separator);
+  margin: 0 0 16px;
+  background: var(--card);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--radius-card);
 }
 
 .meta__row {
   display: flex;
   gap: 16px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--separator);
+  padding: 12px 16px;
   font-size: 15px;
+}
+
+.meta__row + .meta__row {
+  border-top: 1px solid var(--gold-hairline);
 }
 
 .meta__row dt {
@@ -770,10 +933,11 @@ th[aria-sort="descending"] {
   min-height: 36px;
   margin: 0 6px 0 0;
   padding: 0 12px;
-  background: var(--bg-secondary);
+  background: var(--card-raised);
+  border: 1px solid var(--gold-line);
   border-radius: 8px;
   font-size: 14px;
-  color: var(--text);
+  color: var(--gold-strong);
   text-decoration: none;
 }
 
@@ -782,12 +946,16 @@ th[aria-sort="descending"] {
 }
 
 .chip:active {
-  background: var(--bg-tertiary);
+  background: var(--card-pressed);
 }
 
-/* 本文: 長文でも読みやすいように、文字をやや大きく・行間を広く取る */
+/* 本文: 長文でも読みやすいように、文字をやや大きく・行間を広く・内側余白を広く取る */
 .reading {
-  margin: 8px 0 24px;
+  margin: 0 0 24px;
+  padding: 20px 18px;
+  background: var(--card);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--radius-card);
   font-size: 17px;
   line-height: 1.9;
   white-space: pre-wrap;
@@ -829,14 +997,15 @@ th[aria-sort="descending"] {
   width: 22px;
   height: 22px;
   margin-top: 1px;
-  border: 1.5px solid var(--text-tertiary);
+  border: 1.5px solid var(--gold);
   border-radius: 6px;
   font-size: 14px;
   line-height: 1;
+  color: var(--gold-strong);
 }
 
 .note-toggle.is-done .note-toggle__text {
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   text-decoration: line-through;
 }
 
@@ -847,13 +1016,14 @@ th[aria-sort="descending"] {
   margin: 0;
   padding: 0;
   list-style: none;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
+  background: var(--card);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--radius-card);
   overflow: hidden;
 }
 
 .link-list li + li {
-  border-top: 1px solid var(--separator);
+  border-top: 1px solid var(--gold-hairline);
 }
 
 .link-list__row {
@@ -868,11 +1038,11 @@ th[aria-sort="descending"] {
 }
 
 a.link-list__row:active {
-  background: var(--bg-tertiary);
+  background: var(--card-pressed);
 }
 
 .link-list__value {
-  color: var(--text-secondary);
+  color: var(--gold-strong);
   font-variant-numeric: tabular-nums;
 }
 
@@ -883,13 +1053,16 @@ a.link-list__row:active {
 }
 
 .trash-item {
-  padding: 14px 0;
-  border-bottom: 1px solid var(--separator);
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--radius-card);
 }
 
 .trash-item__title {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 
@@ -917,7 +1090,7 @@ a.link-list__row:active {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 1px solid var(--gold-hairline);
   font-size: 15px;
 }
 
@@ -927,7 +1100,8 @@ a.link-list__row:active {
 
 .summary__row dd {
   margin: 0;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--gold-strong);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -942,7 +1116,7 @@ a.link-list__row:active {
   margin-bottom: 4px;
   padding: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .radio {
@@ -959,7 +1133,7 @@ a.link-list__row:active {
   width: 20px;
   height: 20px;
   margin: 1px 0 0;
-  accent-color: var(--accent);
+  accent-color: var(--gold);
 }
 
 .radio small {
@@ -1001,8 +1175,10 @@ a.link-list__row:active {
   max-width: 560px;
   max-height: 90%;
   padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
-  background: var(--sheet-bg);
-  border-radius: 16px 16px 0 0;
+  background: var(--card-raised);
+  border: 1px solid var(--gold-line);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -1024,6 +1200,7 @@ a.link-list__row:active {
   font-size: 20px;
   line-height: 1.35;
   font-weight: 700;
+  color: var(--gold-strong);
   overflow-wrap: anywhere;
 }
 
@@ -1051,6 +1228,15 @@ a.link-list__row:active {
   flex: 1;
 }
 
+/* シートの中の入力欄・ボタンは、シートより一段暗くして見分けやすくする */
+.sheet .field {
+  background: var(--bg);
+}
+
+.sheet .btn--secondary {
+  background: var(--bg);
+}
+
 .picker__search {
   flex: none;
   margin-bottom: 8px;
@@ -1076,7 +1262,7 @@ a.link-list__row:active {
   padding: 0 4px;
   background: none;
   border: 0;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 1px solid var(--gold-hairline);
   font: inherit;
   font-size: 17px;
   color: var(--text);
@@ -1085,11 +1271,12 @@ a.link-list__row:active {
 }
 
 .picker__row:active {
-  background: var(--bg-secondary);
+  background: var(--card-pressed);
 }
 
 .picker__row--create {
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--gold-strong);
 }
 
 .picker__check {
@@ -1097,6 +1284,7 @@ a.link-list__row:active {
   width: 1.5em;
   text-align: center;
   font-size: 18px;
+  color: var(--gold-strong);
 }
 
 .picker__empty {
@@ -1108,6 +1296,8 @@ a.link-list__row:active {
 
 /* ---------------------------------------------------------
    下部の固定ナビゲーション
+   背景はブラック。選択中はゴールド、非選択はグレージュ。
+   アイコンは .icon（24px）。タブの幅は均等。
    --------------------------------------------------------- */
 .tabbar {
   position: fixed;
@@ -1119,44 +1309,53 @@ a.link-list__row:active {
   justify-content: center;
   height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: var(--bg);
-  border-top: 1px solid var(--separator);
+  background: #000000;
+  border-top: 1px solid var(--gold-line);
 }
 
 .tabbar a {
-  flex: 1;
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
+  min-width: 0;
   min-height: 49px;
   color: var(--text-tertiary);
   text-decoration: none;
 }
 
+.tabbar a {
+  position: relative;
+}
+
 .tabbar a.is-active {
-  color: var(--text);
+  color: var(--gold);
 }
 
-.tabbar__icon {
-  width: 26px;
-  height: 26px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.tabbar a.is-active .tabbar__icon {
+.tabbar a.is-active .icon {
   stroke-width: 2.1;
+}
+
+/* 選択中のタブは、ラベルの下に細いゴールドのバー */
+.tabbar a.is-active::after {
+  content: "";
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  width: 28px;
+  height: 3px;
+  margin-left: -14px;
+  background: var(--gold);
+  border-radius: 2px;
 }
 
 .tabbar__label {
   font-size: 10px;
   line-height: 1.2;
-  font-weight: 500;
+  font-weight: 700;
+  letter-spacing: 0.1em;
 }
 
 /* ---------------------------------------------------------
@@ -1188,6 +1387,16 @@ a.link-list__row:active {
   .table th {
     padding-left: 10px;
     padding-right: 10px;
+  }
+
+  .table th:first-child,
+  .table td:first-child {
+    padding-left: 20px;
+  }
+
+  .table th:last-child,
+  .table td:last-child {
+    padding-right: 20px;
   }
 
   .table--records .col-date,
@@ -1234,11 +1443,13 @@ a.link-list__row:active {
   }
 
   .sheet {
-    border-radius: 16px;
+    border-bottom: 1px solid var(--gold-line);
+    border-radius: 20px;
     padding-bottom: 20px;
   }
 
   .reading {
+    padding: 28px 28px;
     font-size: 18px;
   }
 }
