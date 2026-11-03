@@ -1,5 +1,5 @@
 import { getDB } from './database.js';
-import { promisifyRequest } from '../lib/idbHelpers.js';
+import { promisifyRequest, promisifyTx } from '../lib/idbHelpers.js';
 import { uuid, nowISO } from '../lib/util.js';
 
 const STORE = 'groups';
@@ -27,6 +27,26 @@ export async function deleteGroup(id) {
   const db = await getDB();
   const store = db.transaction(STORE, 'readwrite').objectStore(STORE);
   await promisifyRequest(store.delete(id));
+}
+
+// グループを削除し、そのグループへの紐付けだけを記録から外す（記録自体は削除しない）。
+// 詳細は people.js の deletePersonCascade を参照。
+export async function deleteGroupCascade(id) {
+  const db = await getDB();
+  const tx = db.transaction(['groups', 'records'], 'readwrite');
+  const done = promisifyTx(tx);
+  const groupsStore = tx.objectStore('groups');
+  const recordsStore = tx.objectStore('records');
+
+  const all = await promisifyRequest(recordsStore.getAll());
+  for (const r of all) {
+    if (Array.isArray(r.groupIds) && r.groupIds.includes(id)) {
+      r.groupIds = r.groupIds.filter((gid) => gid !== id);
+      recordsStore.put(r);
+    }
+  }
+  groupsStore.delete(id);
+  await done;
 }
 
 export async function getGroup(id) {

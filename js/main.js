@@ -9,80 +9,83 @@ import { renderGroupDetail } from './views/groupDetail.js';
 import { renderSearch } from './views/search.js';
 import { renderSettings } from './views/settings.js';
 import { renderTrash } from './views/trash.js';
+import { tabForFrom } from './lib/nav.js';
+import { dec, escapeHtml } from './lib/util.js';
 
 const root = document.getElementById('app');
 
 // シンプルなハッシュルーター。SPAフレームワークは使わず、
-// パターンマッチしたら対応するrender関数をroot要素に描画するだけの薄い仕組み。
+// パターンにマッチした画面の render 関数に描画させるだけの薄い仕組み。
+// tab は下部ナビゲーションのどれを選択状態にするか。
 const routes = [
-  { pattern: /^#\/$/, render: (r) => renderHome(r) },
-  { pattern: /^#\/record\/new$/, render: (r, m, q) => renderRecordForm(r, {}, q) },
-  { pattern: /^#\/record\/([^/]+)\/edit$/, render: (r, m, q) => renderRecordForm(r, { id: m[1] }, q) },
-  { pattern: /^#\/record\/([^/]+)$/, render: (r, m) => renderRecordDetail(r, m[1]) },
-  { pattern: /^#\/people$/, render: (r) => renderPersonList(r) },
-  { pattern: /^#\/people\/([^/]+)$/, render: (r, m) => renderPersonDetail(r, m[1]) },
-  { pattern: /^#\/groups$/, render: (r) => renderGroupList(r) },
-  { pattern: /^#\/groups\/([^/]+)$/, render: (r, m) => renderGroupDetail(r, m[1]) },
-  { pattern: /^#\/search$/, render: (r, m, q) => renderSearch(r, m, q) },
-  { pattern: /^#\/settings$/, render: (r) => renderSettings(r) },
-  { pattern: /^#\/trash$/, render: (r) => renderTrash(r) },
+  { pattern: /^#\/$/, tab: 'home', render: (c) => renderHome(c) },
+  { pattern: /^#\/people$/, tab: 'people', render: (c) => renderPersonList(c) },
+  { pattern: /^#\/people\/([^/]+)$/, tab: 'people', render: (c, m) => renderPersonDetail(c, dec(m[1])) },
+  { pattern: /^#\/record\/new$/, tab: 'new', render: (c, m, q) => renderRecordForm(c, {}, q) },
+  {
+    pattern: /^#\/record\/([^/]+)\/edit$/,
+    tab: (m, q) => tabForFrom(q.get('from')),
+    render: (c, m, q) => renderRecordForm(c, { id: dec(m[1]) }, q),
+  },
+  {
+    pattern: /^#\/record\/([^/]+)$/,
+    tab: (m, q) => tabForFrom(q.get('from')),
+    render: (c, m, q) => renderRecordDetail(c, dec(m[1]), q),
+  },
+  { pattern: /^#\/groups$/, tab: 'home', render: (c) => renderGroupList(c) },
+  { pattern: /^#\/groups\/([^/]+)$/, tab: 'home', render: (c, m) => renderGroupDetail(c, dec(m[1])) },
+  { pattern: /^#\/search$/, tab: 'home', render: (c, m, q) => renderSearch(c, m, q) },
+  { pattern: /^#\/settings$/, tab: 'home', render: (c) => renderSettings(c) },
+  { pattern: /^#\/trash$/, tab: 'home', render: (c) => renderTrash(c) },
 ];
 
 function parseHash() {
   const raw = location.hash || '#/';
-  const [path, qs] = raw.split('?');
-  return { path, query: new URLSearchParams(qs || '') };
+  const i = raw.indexOf('?');
+  const path = i === -1 ? raw : raw.slice(0, i);
+  const qs = i === -1 ? '' : raw.slice(i + 1);
+  return { path: path || '#/', query: new URLSearchParams(qs) };
 }
 
+// 連続して素早く画面を切り替えたとき、古い画面の描画が後から上書きしないよう
+// 世代番号で管理する。画面は別のコンテナに描画し、完成してから差し替える。
+let routeSeq = 0;
+
 async function route() {
+  const seq = ++routeSeq;
   const { path, query } = parseHash();
   const matched = routes.find((r) => r.pattern.test(path));
-  root.innerHTML = '';
+  const m = matched ? path.match(matched.pattern) : null;
+
+  const container = document.createElement('div');
   try {
     if (matched) {
-      const m = path.match(matched.pattern);
-      await matched.render(root, m, query);
+      await matched.render(container, m, query);
     } else {
-      await renderHome(root);
+      await renderHome(container);
     }
   } catch (err) {
     console.error(err);
-    root.innerHTML = `<div class="view"><p class="empty-state">エラーが発生しました: ${escapeForError(err.message)}</p><a href="#/" class="secondary-button full-width">ホームへ</a></div>`;
+    container.innerHTML = `
+      <div class="page">
+        <p class="empty">エラーが発生しました: ${escapeHtml(err.message)}</p>
+        <div class="actions"><a href="#/" class="btn btn--secondary btn--block">ホームへ</a></div>
+      </div>`;
   }
-  updateNav(path);
-  updateFab(path);
+  if (seq !== routeSeq) return; // その間に別の画面へ移動していた
+
+  root.replaceChildren(container);
+  const tab = matched ? (typeof matched.tab === 'function' ? matched.tab(m, query) : matched.tab) : 'home';
+  updateNav(tab);
   window.scrollTo(0, 0);
 }
 
-// 人物詳細・グループ詳細画面を見ているときは、フローティングの「＋」ボタンから
-// その人物・グループを選択済みの状態で記録作成画面に飛べるようにする。
-// 「記録追加」ボタン自体は画面下部にあるが、FABは常に画面右下に表示され続けるため、
-// スクロール位置に関わらずワンタップで記録を追加できる。
-function updateFab(path) {
-  const fab = document.querySelector('.fab');
-  if (!fab) return;
-  const personMatch = path.match(/^#\/people\/([^/]+)$/);
-  const groupMatch = path.match(/^#\/groups\/([^/]+)$/);
-  if (personMatch) {
-    fab.setAttribute('href', `#/record/new?personId=${personMatch[1]}`);
-  } else if (groupMatch) {
-    fab.setAttribute('href', `#/record/new?groupId=${groupMatch[1]}`);
-  } else {
-    fab.setAttribute('href', '#/record/new');
-  }
-}
-
-function escapeForError(str) {
-  return String(str || '').replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
-}
-
-function updateNav(path) {
-  document.querySelectorAll('.bottom-nav a').forEach((a) => {
-    const match = a.dataset.match;
-    const isActive = match === '#/' ? path === '#/' : path.startsWith(match);
-    a.classList.toggle('is-active', isActive);
+function updateNav(tab) {
+  document.querySelectorAll('.tabbar a').forEach((a) => {
+    const active = a.dataset.tab === tab;
+    a.classList.toggle('is-active', active);
+    if (active) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
   });
 }
 
@@ -92,7 +95,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   try {
     await initDB();
   } catch (err) {
-    root.innerHTML = `<div class="view"><p class="empty-state">データベースの初期化に失敗しました: ${escapeForError(err.message)}</p></div>`;
+    root.innerHTML = `<div class="page"><p class="empty">データベースの初期化に失敗しました: ${escapeHtml(err.message)}</p></div>`;
     console.error(err);
     return;
   }

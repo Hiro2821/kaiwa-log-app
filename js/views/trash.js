@@ -1,33 +1,33 @@
 import { listTrashedRecords, restoreRecord, permanentlyDeleteRecord } from '../db/records.js';
-import { escapeHtml, formatDateTime } from '../lib/util.js';
+import { escapeHtml, formatDate, formatDateTime } from '../lib/util.js';
+import { backLinkHTML, emptyHTML } from './shared.js';
+import { showConfirmModal } from './modal.js';
 
 export async function renderTrash(root) {
-  root.innerHTML = `<div class="view"><p class="loading">読み込み中…</p></div>`;
   const trashed = await listTrashedRecords();
 
   root.innerHTML = `
-    <div class="view">
-      <header class="view-header">
-        <a href="#/settings" class="back-link" aria-label="戻る">←</a>
-        <h1>ゴミ箱</h1>
-      </header>
+    <div class="page">
+      <header class="page-header page-header--nav">${backLinkHTML('#/settings', 'データ管理')}</header>
+      <header class="page-header"><h1 class="page-title">ゴミ箱</h1></header>
       ${
         trashed.length
-          ? `<ul class="entity-list">${trashed
-              .map(
-                (r) => `<li class="trash-item">
-                  <div>
-                    <div class="entity-list__name">${escapeHtml(r.title || '（無題の記録）')}</div>
-                    <div class="entity-list__memo">削除日時：${formatDateTime(r.deletedAt)}</div>
-                  </div>
-                  <div class="trash-item__actions">
-                    <button class="secondary-button" data-restore="${r.id}">復元</button>
-                    <button class="danger-button" data-purge="${r.id}">完全に削除</button>
-                  </div>
-                </li>`
-              )
-              .join('')}</ul>`
-          : `<p class="empty-state">ゴミ箱は空です。</p>`
+          ? `<p class="body-note">削除した記録です。元に戻すか、完全に削除できます。</p>
+             <ul class="trash-list">${trashed
+               .map(
+                 (r) => `<li class="trash-item">
+                   <div class="trash-item__main">
+                     <div class="trash-item__title">${escapeHtml(r.title || '（無題）')}</div>
+                     <div class="trash-item__meta">記録日 ${escapeHtml(formatDate(r.createdAt))} ・ 削除 ${escapeHtml(formatDateTime(r.deletedAt))}</div>
+                   </div>
+                   <div class="trash-item__actions">
+                     <button type="button" class="btn btn--secondary btn--small" data-restore="${escapeHtml(r.id)}">元に戻す</button>
+                     <button type="button" class="btn btn--danger-text btn--small" data-purge="${escapeHtml(r.id)}">完全に削除</button>
+                   </div>
+                 </li>`
+               )
+               .join('')}</ul>`
+          : emptyHTML('ゴミ箱は空です。')
       }
     </div>
   `;
@@ -40,7 +40,13 @@ export async function renderTrash(root) {
   );
   root.querySelectorAll('[data-purge]').forEach((btn) =>
     btn.addEventListener('click', async () => {
-      if (!confirm('完全に削除すると元に戻せません。よろしいですか？')) return;
+      const ok = await showConfirmModal({
+        title: 'この記録を完全に削除しますか？',
+        message: '完全に削除すると元に戻せません。',
+        confirmLabel: '完全に削除',
+        danger: true,
+      });
+      if (!ok) return;
       await permanentlyDeleteRecord(btn.dataset.purge);
       renderTrash(root);
     })

@@ -1,120 +1,88 @@
-import { getGroup, updateGroup, listGroups } from '../db/groups.js';
-import { toggleNextTimeNote, listRecordsByGroup } from '../db/records.js';
-import { getGroupSummary } from '../lib/groupSummary.js';
-import { mergeGroupInto } from '../lib/mergeEntity.js';
-import { recordCardHTML } from './shared.js';
-import { nextTimeNotesSectionHTML } from './personDetail.js';
-import { escapeHtml } from '../lib/util.js';
+import { getGroup, updateGroup, deleteGroupCascade } from '../db/groups.js';
+import { listRecordsByGroup } from '../db/records.js';
+import { listPeople } from '../db/people.js';
+import { escapeHtml, formatDate } from '../lib/util.js';
+import { backLinkHTML, recordTableHTML, bindRowLinks, emptyHTML } from './shared.js';
+import { showGroupFormModal, showConfirmModal, showInfoModal } from './modal.js';
 
 export async function renderGroupDetail(root, id) {
-  root.innerHTML = `<div class="view"><p class="loading">読み込み中…</p></div>`;
-
   const group = await getGroup(id);
   if (!group) {
     root.innerHTML = `
-      <div class="view">
-        <p class="empty-state">グループが見つかりませんでした。</p>
-        <a href="#/groups" class="secondary-button full-width">グループ一覧へ</a>
+      <div class="page">
+        <header class="page-header page-header--nav">${backLinkHTML('#/groups', 'グループ')}</header>
+        ${emptyHTML('グループが見つかりませんでした。')}
       </div>`;
     return;
   }
 
-  const [summary, allRecords] = await Promise.all([getGroupSummary(id), listRecordsByGroup(id)]);
-  const pendingNotes = summary.nextTimeNotes.filter((n) => !n.done);
-  const doneNotes = summary.nextTimeNotes.filter((n) => n.done);
+  const [records, people] = await Promise.all([listRecordsByGroup(id), listPeople()]);
+  const peopleById = Object.fromEntries(people.map((p) => [p.id, p]));
+  const last = records.length ? records[0].createdAt : null;
+  const from = `group:${id}`;
 
   root.innerHTML = `
-    <div class="view view--person-detail">
-      <header class="view-header">
-        <a href="#/groups" class="back-link" aria-label="戻る">←</a>
+    <div class="page">
+      <header class="page-header page-header--nav">
+        ${backLinkHTML('#/groups', 'グループ')}
+        <button type="button" class="header-button" id="edit-group-btn">編集</button>
       </header>
 
-      <div class="person-name-header">
-        <h1>${escapeHtml(group.name)}</h1>
-      </div>
+      <h1 class="detail-title">${escapeHtml(group.name)}</h1>
+      ${group.memo ? `<p class="detail-memo">${escapeHtml(group.memo)}</p>` : ''}
 
-      ${nextTimeNotesSectionHTML(pendingNotes, doneNotes)}
+      <dl class="facts">
+        <div class="facts__item"><dt>会話記録</dt><dd>${records.length}件</dd></div>
+        <div class="facts__item"><dt>最終記録日</dt><dd>${last ? escapeHtml(formatDate(last)) : '—'}</dd></div>
+      </dl>
 
       <section class="section">
-        <h2 class="section__title">最近の会話（全${summary.totalCount}件）</h2>
+        <h2 class="section__title">会話履歴</h2>
         ${
-          summary.recent.length
-            ? `<div class="record-list">${summary.recent.map((r) => recordCardHTML(r, { showTags: false })).join('')}</div>`
-            : `<p class="empty-state">まだ記録がありません。</p>`
+          records.length
+            ? recordTableHTML(records, { peopleById, showPeople: true, from })
+            : emptyHTML('このグループの会話記録はありません。')
         }
       </section>
 
-      ${
-        summary.topics.length
-          ? `<section class="highlight-block">
-              <h2>過去の話題</h2>
-              <div class="pill-row">
-                ${summary.topics.map((t) => `<span class="pill">${escapeHtml(t.topic)}（${t.count}）</span>`).join('')}
-              </div>
-            </section>`
-          : ''
-      }
-
-      ${
-        allRecords.length > summary.recent.length
-          ? `<details class="details-toggle">
-              <summary>すべての記録を見る（全${allRecords.length}件）</summary>
-              <div class="details-toggle__content record-list">
-                ${allRecords.map((r) => recordCardHTML(r, { showTags: false })).join('')}
-              </div>
-            </details>`
-          : ''
-      }
-
-      <div class="form-actions">
-        <a href="#/record/new?groupId=${group.id}" class="primary-button full-width">
-          ＋ ${escapeHtml(group.name)}の記録を追加
-        </a>
-        <button id="edit-group-btn" class="secondary-button">名前・メモを編集</button>
-        <button id="merge-group-btn" class="secondary-button">他のグループと統合</button>
-      </div>
+      <section class="section section--danger-zone">
+        <div class="actions">
+          <button type="button" class="btn btn--danger-text btn--block" id="delete-group-btn">このグループを削除</button>
+        </div>
+      </section>
     </div>
   `;
 
-  root.querySelectorAll('[data-toggle-record]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      await toggleNextTimeNote(btn.dataset.toggleRecord, btn.dataset.toggleNote);
-      renderGroupDetail(root, id);
-    });
-  });
+  bindRowLinks(root);
 
   root.querySelector('#edit-group-btn').addEventListener('click', async () => {
-    const newName = prompt('名前を編集', group.name);
-    if (newName === null) return;
-    if (!newName.trim()) {
-      alert('名前は空にできません。');
-      return;
+    const result = await showGroupFormModal({ title: 'グループを編集', name: group.name, memo: group.memo || '' });
+    if (!result) return;
+    try {
+      await updateGroup(id, { name: result.name, memo: result.memo });
+      renderGroupDetail(root, id);
+    } catch (e) {
+      await showInfoModal({ title: 'エラー', message: e.message });
     }
-    const newMemo = prompt('メモを編集（任意）', group.memo || '');
-    await updateGroup(group.id, { name: newName.trim(), memo: (newMemo || '').trim() });
-    renderGroupDetail(root, id);
   });
 
-  root.querySelector('#merge-group-btn').addEventListener('click', async () => {
-    const others = (await listGroups()).filter((g) => g.id !== group.id);
-    if (!others.length) {
-      alert('統合できる他のグループがありません。');
-      return;
+  root.querySelector('#delete-group-btn').addEventListener('click', async () => {
+    const linked = await listRecordsByGroup(id, { includeDeleted: true });
+    const ok = await showConfirmModal({
+      title: `「${group.name}」を削除しますか？`,
+      message:
+        (linked.length
+          ? `このグループに紐づく会話記録（${linked.length}件）は削除されません。記録からグループの紐付けだけが外れます。`
+          : 'このグループに紐づく会話記録はありません。') + 'この操作は元に戻せません。',
+      confirmLabel: '削除する',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteGroupCascade(id);
+      location.hash = '#/groups';
+    } catch (e) {
+      await showInfoModal({ title: '削除に失敗しました', message: e.message });
     }
-    const listText = others.map((g, i) => `${i + 1}: ${g.name}`).join('\n');
-    const answer = prompt(
-      `「${group.name}」を統合する相手を番号で選んでください。\n` +
-        `「${group.name}」の記録はすべて統合先に移り、「${group.name}」自体は削除されます。\n\n${listText}`
-    );
-    if (answer === null) return;
-    const idx = Number(answer) - 1;
-    if (!Number.isInteger(idx) || idx < 0 || idx >= others.length) {
-      alert('番号が正しくありません。');
-      return;
-    }
-    const target = others[idx];
-    if (!confirm(`「${group.name}」を「${target.name}」に統合します。この操作は元に戻せません。よろしいですか？`)) return;
-    await mergeGroupInto(group.id, target.id);
-    location.hash = `#/groups/${target.id}`;
   });
 }

@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>会話記録</title>
 <meta name="description" content="人と話した内容を記録し、次に会うときに思い出せるようにするための個人用メモアプリ">
+<meta name="color-scheme" content="light dark">
 
 <!-- iPhoneでホーム画面に追加した際の見た目・挙動の調整 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="会話記録">
-<meta name="theme-color" content="#FAFAF8">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -19,22 +22,29 @@
 </head>
 <body>
 
-<div id="app" role="main" aria-live="polite"></div>
+<main id="app"></main>
 
-<a href="#/record/new" class="fab" aria-label="新しい記録を追加">＋</a>
-
-<nav class="bottom-nav" aria-label="メインナビゲーション">
-  <a href="#/" data-match="#/" aria-label="ホーム">
-    <span class="bottom-nav__icon" aria-hidden="true">●</span>
-    <span class="bottom-nav__label">ホーム</span>
+<!-- 下部の固定ナビゲーション: ホーム / 人物 / 新規記録 -->
+<nav class="tabbar" aria-label="メインナビゲーション">
+  <a href="#/" data-tab="home">
+    <svg class="tabbar__icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3.5 11 12 4l8.5 7M5.5 9.8V20h13V9.8M10 20v-5.5h4V20" />
+    </svg>
+    <span class="tabbar__label">ホーム</span>
   </a>
-  <a href="#/search" data-match="#/search" aria-label="検索">
-    <span class="bottom-nav__icon" aria-hidden="true">◎</span>
-    <span class="bottom-nav__label">検索</span>
+  <a href="#/people" data-tab="people">
+    <svg class="tabbar__icon" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="9" cy="8.5" r="3.3" />
+      <path d="M2.8 19.5c0-3.3 2.8-5.6 6.2-5.6s6.2 2.3 6.2 5.6M15.8 5.4a3.3 3.3 0 0 1 0 6.2M17.5 14.2c2.4.6 3.9 2.5 3.9 5.3" />
+    </svg>
+    <span class="tabbar__label">人物</span>
   </a>
-  <a href="#/settings" data-match="#/settings" aria-label="設定">
-    <span class="bottom-nav__icon" aria-hidden="true">▤</span>
-    <span class="bottom-nav__label">設定</span>
+  <a href="#/record/new" data-tab="new">
+    <svg class="tabbar__icon" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="3.5" />
+      <path d="M12 8.5v7M8.5 12h7" />
+    </svg>
+    <span class="tabbar__label">新規記録</span>
   </a>
 </nav>
 

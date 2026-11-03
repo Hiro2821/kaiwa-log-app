@@ -1,31 +1,68 @@
-import { escapeHtml, formatDateTime } from '../lib/util.js';
+import { escapeHtml, formatDate } from '../lib/util.js';
+import { recordHref } from '../lib/nav.js';
 
-// 記録カード。人物・グループ名を表示したい場合は peopleById / groupsById を渡す。
-// 人物詳細・グループ詳細画面など、文脈上すでに人物が分かっている場面では
-// showTags: false を指定し、誤って「未分類」と表示されるのを防ぐ。
-export function recordCardHTML(record, { peopleById = {}, groupsById = {}, showTags = true } = {}) {
-  // カード左端のアンバー表示は「未完了の次回確認したいこと」がある場合のみ。
-  // 完了済みしか残っていない記録は通常表示に戻す。
-  const hasNext = (record.nextTimeNotes || []).some((n) => !n.done);
+export function emptyHTML(message) {
+  return `<p class="empty">${escapeHtml(message)}</p>`;
+}
 
-  let tagsHTML = '';
-  if (showTags) {
-    const names = [
-      ...(record.personIds || []).map((id) => peopleById[id]?.name).filter(Boolean),
-      ...(record.groupIds || []).map((id) => groupsById[id]?.name).filter(Boolean),
-    ];
-    tagsHTML = names.length
-      ? `<div class="record-card__tags">${names.map((n) => `<span class="pill">${escapeHtml(n)}</span>`).join('')}</div>`
-      : `<div class="record-card__tags"><span class="pill pill--muted">未分類</span></div>`;
+export function backLinkHTML(href, label) {
+  return `<a href="${href}" class="back-link"><span class="back-link__chevron" aria-hidden="true">‹</span>${escapeHtml(label)}</a>`;
+}
+
+// 人物名の一覧（記録に紐づく人物。存在しないIDは無視）
+export function personNames(record, peopleById) {
+  return (record.personIds || []).map((id) => peopleById[id]?.name).filter(Boolean);
+}
+
+// 会話記録の表。列は「日付」「タイトル」（showPeople のときだけ「人物」を追加）。
+// from を渡すと、記録詳細から「戻る」を押したときにこの画面へ戻れる。
+export function recordTableHTML(records, { peopleById = {}, showPeople = false, from = null } = {}) {
+  const rows = records
+    .map((r) => {
+      const href = recordHref(r.id, from);
+      const names = showPeople ? personNames(r, peopleById) : [];
+      return `<tr data-href="${href}">
+        <td class="col-date">${escapeHtml(formatDate(r.createdAt))}</td>
+        <td class="col-title"><a href="${href}"><span class="clamp">${escapeHtml(r.title || '（無題）')}</span></a></td>
+        ${showPeople ? `<td class="col-people"><span class="clamp">${names.length ? escapeHtml(names.join('、')) : '—'}</span></td>` : ''}
+      </tr>`;
+    })
+    .join('');
+
+  return `<div class="table-wrap">
+    <table class="table table--records ${showPeople ? 'table--with-people' : ''}">
+      <thead>
+        <tr>
+          <th scope="col" class="col-date">日付</th>
+          <th scope="col" class="col-title">タイトル</th>
+          ${showPeople ? '<th scope="col" class="col-people">人物</th>' : ''}
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+// 表の行全体をタップして遷移できるようにする（リンクや入力欄の上のタップは除く）。
+// コンテナに1回だけ設定すればよく、中身を再描画しても有効なまま。
+export function bindRowLinks(container) {
+  container.addEventListener('click', (e) => {
+    if (e.target.closest('a, button, input, select, textarea, label')) return;
+    const tr = e.target.closest('tr[data-href]');
+    if (tr) location.hash = tr.dataset.href;
+  });
+}
+
+// 最終記録日などの集計。records は削除されていない記録の配列。
+export function statsByPerson(records) {
+  const map = new Map();
+  for (const r of records) {
+    for (const pid of r.personIds || []) {
+      const s = map.get(pid) || { count: 0, last: null };
+      s.count += 1;
+      if (r.createdAt && (!s.last || r.createdAt > s.last)) s.last = r.createdAt;
+      map.set(pid, s);
+    }
   }
-
-  const excerpt = (record.text || '').replace(/\s+/g, ' ').slice(0, 60);
-
-  return `
-    <a class="record-card ${hasNext ? 'record-card--flag' : ''}" href="#/record/${record.id}">
-      <div class="record-card__title">${escapeHtml(record.title || '（無題の記録）')}</div>
-      <div class="record-card__excerpt">${escapeHtml(excerpt)}</div>
-      ${tagsHTML}
-      <div class="record-card__date">${formatDateTime(record.createdAt)}</div>
-    </a>`;
+  return map;
 }

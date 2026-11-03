@@ -1,73 +1,77 @@
 import { listAllRecords } from '../db/records.js';
 import { listPeople } from '../db/people.js';
-import { listGroups } from '../db/groups.js';
 import { getSetting } from '../db/settings.js';
-import { recordCardHTML } from './shared.js';
+import { recordTableHTML, bindRowLinks, emptyHTML } from './shared.js';
 import { formatDateTime } from '../lib/util.js';
 
-export async function renderHome(root) {
-  root.innerHTML = `<div class="view"><p class="loading">読み込み中…</p></div>`;
+const RECENT_COUNT = 10;
 
-  const [records, people, groups, lastBackupAt] = await Promise.all([
-    listAllRecords(),
+export async function renderHome(root) {
+  const [records, people, lastBackupAt] = await Promise.all([
+    listAllRecords(), // ゴミ箱の記録は含まない・新しい順
     listPeople(),
-    listGroups(),
     getSetting('lastBackupAt'),
   ]);
 
   const peopleById = Object.fromEntries(people.map((p) => [p.id, p]));
-  const groupsById = Object.fromEntries(groups.map((g) => [g.id, g]));
-  const recent = records.slice(0, 8);
+  const recent = records.slice(0, RECENT_COUNT);
 
   root.innerHTML = `
-    <div class="view view--home">
-      <header class="hero">
-        <h1 class="hero__title">会話記録</h1>
-        <p class="hero__tagline">話したことを、次の会話へ。</p>
+    <div class="page">
+      <header class="page-header">
+        <h1 class="page-title">ホーム</h1>
+        <a href="#/settings" class="header-link">データ管理</a>
       </header>
 
-      ${backupWarningHTML(lastBackupAt)}
+      ${backupNoticeHTML(lastBackupAt, records.length + people.length > 0)}
 
-      <a href="#/record/new" class="hero-cta">＋ 新しい記録</a>
+      <dl class="stats">
+        <a href="#/people" class="stats__item">
+          <dt>登録人物</dt>
+          <dd><span class="stats__num">${people.length}</span><span class="stats__unit">人</span></dd>
+        </a>
+        <div class="stats__item">
+          <dt>会話記録</dt>
+          <dd><span class="stats__num">${records.length}</span><span class="stats__unit">件</span></dd>
+        </div>
+      </dl>
 
-      <nav class="access-cards">
-        <a href="#/people" class="access-card">
-          <span class="access-card__count">${people.length}</span>
-          <span class="access-card__label">人物</span>
-        </a>
-        <a href="#/groups" class="access-card">
-          <span class="access-card__count">${groups.length}</span>
-          <span class="access-card__label">グループ</span>
-        </a>
-        <a href="#/search" class="access-card">
-          <span class="access-card__label">検索</span>
-        </a>
-      </nav>
+      <div class="actions actions--row">
+        <a href="#/record/new" class="btn btn--primary">新規記録</a>
+        <a href="#/people" class="btn btn--secondary">人物一覧</a>
+      </div>
 
       <section class="section">
-        <h2 class="section__title">最近の記録</h2>
+        <div class="section__head">
+          <h2 class="section__title">最近の会話記録</h2>
+          <a href="#/search" class="section__link">すべて・検索</a>
+        </div>
         ${
           recent.length
-            ? `<div class="record-list">${recent.map((r) => recordCardHTML(r, { peopleById, groupsById })).join('')}</div>`
-            : `<p class="empty-state">まだ記録がありません。上の「＋ 新しい記録」から始めましょう。</p>`
+            ? recordTableHTML(recent, { peopleById, showPeople: true, from: 'home' })
+            : emptyHTML('まだ会話記録がありません。「新規記録」から追加できます。')
         }
       </section>
     </div>
   `;
+
+  bindRowLinks(root);
 }
 
-function backupWarningHTML(lastBackupAt) {
+// 記録がこの端末内にしかないことを伝え、バックアップを促す（目立たせすぎない）。
+function backupNoticeHTML(lastBackupAt, hasData) {
+  if (!hasData) return '';
   if (!lastBackupAt) {
-    return `<div class="banner banner--warning">
-      <p>記録はこの端末内にのみ保存されています。まだバックアップがありません。</p>
-      <a href="#/settings" class="banner__action">バックアップする</a>
+    return `<div class="notice">
+      <p>データはこの端末内にのみ保存されています。まだバックアップがありません。</p>
+      <a href="#/settings" class="notice__action">バックアップする</a>
     </div>`;
   }
   const days = Math.floor((Date.now() - new Date(lastBackupAt).getTime()) / 86400000);
   if (days >= 14) {
-    return `<div class="banner banner--warning">
+    return `<div class="notice">
       <p>最後のバックアップ（${formatDateTime(lastBackupAt)}）から${days}日経っています。</p>
-      <a href="#/settings" class="banner__action">バックアップする</a>
+      <a href="#/settings" class="notice__action">バックアップする</a>
     </div>`;
   }
   return '';

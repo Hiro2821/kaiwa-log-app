@@ -1,154 +1,156 @@
-import { getPerson, updatePerson, listPeople } from '../db/people.js';
-import { toggleNextTimeNote, listRecordsByPerson } from '../db/records.js';
-import { getPersonSummary } from '../lib/personSummary.js';
+import { getPerson, updatePerson, listPeople, deletePersonCascade } from '../db/people.js';
+import { listRecordsByPerson, toggleNextTimeNote } from '../db/records.js';
 import { mergePersonInto } from '../lib/mergeEntity.js';
-import { recordCardHTML } from './shared.js';
-import { escapeHtml } from '../lib/util.js';
+import { escapeHtml, formatDate, enc } from '../lib/util.js';
+import { backLinkHTML, recordTableHTML, bindRowLinks, emptyHTML } from './shared.js';
+import { showPersonFormModal, showConfirmModal, showInfoModal } from './modal.js';
+import { showPersonPicker } from './personPicker.js';
 
 export async function renderPersonDetail(root, id) {
-  root.innerHTML = `<div class="view"><p class="loading">読み込み中…</p></div>`;
-
   const person = await getPerson(id);
   if (!person) {
     root.innerHTML = `
-      <div class="view">
-        <p class="empty-state">人物が見つかりませんでした。</p>
-        <a href="#/people" class="secondary-button full-width">人物一覧へ</a>
+      <div class="page">
+        <header class="page-header page-header--nav">${backLinkHTML('#/people', '人物')}</header>
+        ${emptyHTML('人物が見つかりませんでした。削除された可能性があります。')}
       </div>`;
     return;
   }
 
-  // getPersonSummary()（js/lib/、変更不可）は最近の会話を5件までに絞って返す。
-  // 「④ すべての記録」をUIに追加するため、既存の listRecordsByPerson() を
-  // ここでもう一度呼び出して全件を取得する（データ層のロジック自体は変更していない）。
-  const [summary, allRecords] = await Promise.all([getPersonSummary(id), listRecordsByPerson(id)]);
-  const pendingNotes = summary.nextTimeNotes.filter((n) => !n.done);
-  const doneNotes = summary.nextTimeNotes.filter((n) => n.done);
+  // 削除されていない記録（新しい順）。ゴミ箱内の記録は一覧にも件数にも含めない。
+  const records = await listRecordsByPerson(id);
+  const last = records.length ? records[0].createdAt : null; // 新しい順なので先頭が最新
+  const from = `person:${id}`;
+
+  // 以前のバージョンで入力された「次回確認したいこと」。入力欄は廃止したが、
+  // 既存データは失われないよう、未完了のものだけここに表示する。
+  const pendingNotes = records.flatMap((r) =>
+    (r.nextTimeNotes || []).filter((n) => !n.done).map((n) => ({ ...n, recordId: r.id }))
+  );
 
   root.innerHTML = `
-    <div class="view view--person-detail">
-      <header class="view-header">
-        <a href="#/people" class="back-link" aria-label="戻る">←</a>
+    <div class="page">
+      <header class="page-header page-header--nav">
+        ${backLinkHTML('#/people', '人物')}
+        <button type="button" class="header-button" id="edit-person-btn">編集</button>
       </header>
 
-      <div class="person-name-header">
-        <h1>${escapeHtml(person.name)}</h1>
+      <h1 class="detail-title">${escapeHtml(person.name)}</h1>
+      ${person.memo ? `<p class="detail-memo">${escapeHtml(person.memo)}</p>` : ''}
+
+      <dl class="facts">
+        <div class="facts__item"><dt>会話記録</dt><dd>${records.length}件</dd></div>
+        <div class="facts__item"><dt>最終記録日</dt><dd>${last ? escapeHtml(formatDate(last)) : '—'}</dd></div>
+      </dl>
+
+      <div class="actions">
+        <a href="#/record/new?personId=${enc(id)}&from=${encodeURIComponent(from)}" class="btn btn--primary btn--block">この人物の記録を追加</a>
       </div>
 
-      ${nextTimeNotesSectionHTML(pendingNotes, doneNotes)}
-
-      <section class="section">
-        <h2 class="section__title">最近の会話（全${summary.totalCount}件）</h2>
-        ${
-          summary.recent.length
-            ? `<div class="record-list">${summary.recent.map((r) => recordCardHTML(r, { showTags: false })).join('')}</div>`
-            : `<p class="empty-state">まだ記録がありません。</p>`
-        }
-      </section>
-
       ${
-        summary.topics.length
-          ? `<section class="highlight-block">
-              <h2>過去の話題</h2>
-              <div class="pill-row">
-                ${summary.topics.map((t) => `<span class="pill">${escapeHtml(t.topic)}（${t.count}）</span>`).join('')}
-              </div>
+        pendingNotes.length
+          ? `<section class="section">
+              <h2 class="section__title">次回確認したいこと</h2>
+              <ul class="note-list">
+                ${pendingNotes
+                  .map(
+                    (n) => `<li><button type="button" class="note-toggle" data-record="${escapeHtml(n.recordId)}" data-note="${escapeHtml(n.id)}">
+                      <span class="note-toggle__box" aria-hidden="true"></span>
+                      <span class="note-toggle__text">${escapeHtml(n.text)}</span>
+                    </button></li>`
+                  )
+                  .join('')}
+              </ul>
             </section>`
           : ''
       }
 
-      ${
-        allRecords.length > summary.recent.length
-          ? `<details class="details-toggle">
-              <summary>すべての記録を見る（全${allRecords.length}件）</summary>
-              <div class="details-toggle__content record-list">
-                ${allRecords.map((r) => recordCardHTML(r, { showTags: false })).join('')}
-              </div>
-            </details>`
-          : ''
-      }
+      <section class="section">
+        <h2 class="section__title">会話履歴</h2>
+        ${records.length ? recordTableHTML(records, { from }) : emptyHTML('この人物との会話記録はまだありません。')}
+      </section>
 
-      <div class="form-actions">
-        <a href="#/record/new?personId=${person.id}" class="primary-button full-width">
-          ＋ ${escapeHtml(person.name)}さんとの記録を追加
-        </a>
-        <button id="edit-person-btn" class="secondary-button">名前・メモを編集</button>
-        <button id="merge-person-btn" class="secondary-button">他の人物と統合</button>
-      </div>
+      <section class="section section--danger-zone">
+        <div class="actions">
+          <button type="button" class="btn btn--secondary btn--block" id="merge-person-btn">他の人物と統合</button>
+          <button type="button" class="btn btn--danger-text btn--block" id="delete-person-btn">この人物を削除</button>
+        </div>
+      </section>
     </div>
   `;
 
-  root.querySelectorAll('[data-toggle-record]').forEach((btn) => {
+  bindRowLinks(root);
+
+  root.querySelectorAll('.note-toggle').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      await toggleNextTimeNote(btn.dataset.toggleRecord, btn.dataset.toggleNote);
+      await toggleNextTimeNote(btn.dataset.record, btn.dataset.note);
       renderPersonDetail(root, id);
     });
   });
 
   root.querySelector('#edit-person-btn').addEventListener('click', async () => {
-    const newName = prompt('名前を編集', person.name);
-    if (newName === null) return;
-    if (!newName.trim()) {
-      alert('名前は空にできません。');
-      return;
+    const result = await showPersonFormModal({
+      title: '人物を編集',
+      name: person.name,
+      memo: person.memo || '',
+    });
+    if (!result) return;
+    try {
+      await updatePerson(person.id, { name: result.name, memo: result.memo });
+      renderPersonDetail(root, id);
+    } catch (e) {
+      await showInfoModal({ title: 'エラー', message: e.message });
     }
-    const newMemo = prompt('メモを編集（任意）', person.memo || '');
-    await updatePerson(person.id, { name: newName.trim(), memo: (newMemo || '').trim() });
-    renderPersonDetail(root, id);
+  });
+
+  root.querySelector('#delete-person-btn').addEventListener('click', async () => {
+    // 件数にはゴミ箱内の記録も含める（紐付けが外れる対象のため）
+    const linked = await listRecordsByPerson(id, { includeDeleted: true });
+    const ok = await showConfirmModal({
+      title: `「${person.name}」を削除しますか？`,
+      message:
+        (linked.length
+          ? `この人物に紐づく会話記録（${linked.length}件）は削除されません。記録からこの人物の紐付けだけが外れます。`
+          : 'この人物に紐づく会話記録はありません。') + 'この操作は元に戻せません。',
+      confirmLabel: '削除する',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deletePersonCascade(id);
+      location.hash = '#/people';
+    } catch (e) {
+      await showInfoModal({ title: '削除に失敗しました', message: e.message });
+    }
   });
 
   root.querySelector('#merge-person-btn').addEventListener('click', async () => {
-    const others = (await listPeople()).filter((p) => p.id !== person.id);
-    if (!others.length) {
-      alert('統合できる他の人物がありません。');
+    const all = await listPeople();
+    if (all.length < 2) {
+      await showInfoModal({ title: '統合できません', message: '統合できる他の人物がいません。' });
       return;
     }
-    const listText = others.map((p, i) => `${i + 1}: ${p.name}`).join('\n');
-    const answer = prompt(
-      `「${person.name}」を統合する相手を番号で選んでください。\n` +
-        `「${person.name}」の記録はすべて統合先に移り、「${person.name}」自体は削除されます。\n\n${listText}`
-    );
-    if (answer === null) return;
-    const idx = Number(answer) - 1;
-    if (!Number.isInteger(idx) || idx < 0 || idx >= others.length) {
-      alert('番号が正しくありません。');
-      return;
+    const picked = await showPersonPicker({
+      people: all,
+      multiple: false,
+      allowCreate: false,
+      excludeIds: [id],
+      title: `「${person.name}」の統合先`,
+    });
+    if (!picked) return;
+    const target = picked.people.find((p) => p.id === picked.ids[0]);
+    const ok = await showConfirmModal({
+      title: '人物を統合しますか？',
+      message: `「${person.name}」の会話記録はすべて「${target.name}」に移り、「${person.name}」は削除されます。この操作は元に戻せません。`,
+      confirmLabel: '統合する',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await mergePersonInto(id, target.id);
+      location.hash = `#/people/${enc(target.id)}`;
+    } catch (e) {
+      await showInfoModal({ title: '統合に失敗しました', message: e.message });
     }
-    const target = others[idx];
-    if (!confirm(`「${person.name}」を「${target.name}」に統合します。この操作は元に戻せません。よろしいですか？`)) return;
-    await mergePersonInto(person.id, target.id);
-    location.hash = `#/people/${target.id}`;
   });
-}
-
-// 「次回確認したいこと」セクション。未完了を優先表示し、完了済みは
-// <details> で折りたたんでおく（アプリの目的上、最も重要な情報のため最上部に置く）。
-export function nextTimeNotesSectionHTML(pendingNotes, doneNotes) {
-  if (!pendingNotes.length && !doneNotes.length) return '';
-  return `
-    <section class="highlight-block highlight-block--flag">
-      <h2>次回確認したいこと</h2>
-      ${
-        pendingNotes.length
-          ? `<ul class="tag-list">${pendingNotes.map((n) => nextNoteRowHTML(n)).join('')}</ul>`
-          : `<p class="empty-hint">未完了の項目はありません。</p>`
-      }
-      ${
-        doneNotes.length
-          ? `<details class="done-notes">
-              <summary>完了済みを見る（${doneNotes.length}件）</summary>
-              <ul class="tag-list">${doneNotes.map((n) => nextNoteRowHTML(n)).join('')}</ul>
-            </details>`
-          : ''
-      }
-    </section>`;
-}
-
-function nextNoteRowHTML(n) {
-  return `<li>
-    <button type="button" class="next-note-toggle" data-toggle-record="${n.recordId}" data-toggle-note="${n.id}">
-      <span class="next-note-toggle__box" aria-hidden="true">${n.done ? '✓' : '□'}</span>
-      <span class="next-note-toggle__text ${n.done ? 'is-done' : ''}">${escapeHtml(n.text)}</span>
-    </button>
-  </li>`;
 }
