@@ -1,9 +1,9 @@
 /* =========================================================
-   会話記録 スタイル — ブラック × ゴールド
+   会話記録 スタイル — ホワイト／グレー × ゴールド
    方針:
-   - 背景はブラック〜ダークブラウン。カードは背景より少し明るい暗色に、細いゴールドの枠線。
+   - 背景は明るいグレー、カードは白に、細いゴールドの枠線。
    - アクセントは派手にならない「シャンパンゴールド」。見出し・数値・選択状態など、
-     重要な情報にだけ使う。本文はアイボリー、補足はベージュ/グレージュ。
+     重要な情報にだけ使う。白地で読めるよう、文字に使う金色は深めにしている。本文は墨色、補足はグレー。
    - 影・グラデーション・アニメーションは使わない。余白・文字・色・配置で見せる。
    - アイコンは共通クラス .icon でサイズを一括管理する（巨大化の防止）。
    - タップ要素は高さ44px以上。iPhoneは片手操作、iPadは最大幅を抑えて表を見やすく。
@@ -12,25 +12,27 @@
 
 :root {
   /* 背景・面 */
-  --bg: #0d0b09;
-  --card: #15110c;
-  --card-raised: #1d1811;
-  --card-pressed: #251e12;
+  --bg: #f1f0ed; /* 明るいグレー */
+  --card: #ffffff;
+  --card-raised: #ffffff;
+  --card-pressed: #f3efe5;
 
   /* 文字 */
-  --text: #f3ede0; /* アイボリーホワイト */
-  --text-secondary: #bfb39c; /* ベージュ */
-  --text-tertiary: #8f8570; /* グレージュ */
+  --text: #1c1a17;
+  --text-secondary: #5f594d;
+  --text-tertiary: #7d7667;
 
-  /* ゴールド（シャンパンゴールド） */
-  --gold: #cfb27a;
-  --gold-strong: #e0c78f;
-  --on-gold: #17110a;
-  --gold-line: rgba(178, 142, 78, 0.45); /* カードの枠線（やや茶寄りの控えめなゴールド） */
-  --gold-hairline: rgba(178, 142, 78, 0.2); /* 区切り線 */
+  /* ゴールド（シャンパンゴールド）。--gold は文字・アイコン用に白地で読める深さ、
+     --gold-fill は塗り（ボタン・バッジ）用の明るい金 */
+  --gold: #7f6125;
+  --gold-strong: #6a5019;
+  --gold-fill: #cdb078;
+  --on-gold: #1f1607;
+  --gold-line: rgba(160, 124, 58, 0.42); /* カードの枠線 */
+  --gold-hairline: rgba(160, 124, 58, 0.2); /* 区切り線 */
 
-  --danger: #e8806f;
-  --overlay: rgba(0, 0, 0, 0.66);
+  --danger: #b3402f;
+  --overlay: rgba(28, 24, 16, 0.45);
 
   --radius: 12px;
   --radius-card: 22px;
@@ -54,13 +56,12 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   background: var(--bg);
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
-  /* 上部だけにごく淡い暖色の明るみを付ける（目立つグラデーションにはしない） */
-  background: linear-gradient(180deg, #1a140c 0, var(--bg) 280px) no-repeat, var(--bg);
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 16px;
@@ -82,7 +83,7 @@ a {
 }
 
 ::selection {
-  background: rgba(207, 178, 122, 0.35);
+  background: rgba(205, 176, 120, 0.45);
 }
 
 /* ---------------------------------------------------------
@@ -161,13 +162,13 @@ svg {
 .home-brand .page-title {
   margin: 4px 0 8px;
   font-size: 32px;
-  color: #ecdcb4;
+  color: var(--text);
 }
 
 .pill {
   display: inline-block;
   padding: 3px 12px;
-  background: var(--gold);
+  background: var(--gold-fill);
   border-radius: 999px;
   font-size: 11px;
   font-weight: 800;
@@ -498,7 +499,7 @@ svg {
 }
 
 .btn--primary {
-  background: var(--gold);
+  background: var(--gold-fill);
   color: var(--on-gold);
 }
 
@@ -510,12 +511,12 @@ svg {
 
 .btn--danger {
   background: var(--danger);
-  color: var(--on-gold);
+  color: #ffffff;
 }
 
 .btn--danger-text {
   background: var(--card);
-  border-color: rgba(232, 128, 111, 0.4);
+  border-color: rgba(179, 64, 47, 0.4);
   color: var(--danger);
 }
 
@@ -1309,7 +1310,7 @@ a.link-list__row:active {
   justify-content: center;
   height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: #000000;
+  background: #ffffff;
   border-top: 1px solid var(--gold-line);
 }
 
